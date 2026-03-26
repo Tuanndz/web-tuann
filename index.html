@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Tuann — Premium</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --gold: #f0b429;
+      --amber: #f97316;
+      --deep: #08070f;
+      --mid: #12101e;
+      --surface: #1a1730;
+      --text: #e8e0ff;
+      --muted: rgba(232,224,255,0.45);
+      --ring: conic-gradient(from 0deg, #f0b429, #f97316, #e84393, #8b5cf6, #3b82f6, #f0b429);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      overflow: hidden;
+      height: 100vh; width: 100vw;
+      background: var(--deep);
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    /* ── IFRAME ── */
+    .fullscreen-iframe {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      border: none; display: block;
+      opacity: 0;
+      transition: opacity 0.7s ease;
+      z-index: 2;
+    }
+    .fullscreen-iframe.loaded { opacity: 1; }
+
+    /* ── LOADING OVERLAY ── */
+    #loadingOverlay {
+      position: fixed; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 40%, #1a1730 0%, #08070f 100%);
+      z-index: 9000;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.9s ease, visibility 0.9s ease;
+    }
+    #loadingOverlay.fade-out { opacity: 0; visibility: hidden; }
+
+    /* grid noise texture */
+    #loadingOverlay::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(240,180,41,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(240,180,41,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    .loader-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 0;
+      position: relative;
+      animation: riseIn 0.9s cubic-bezier(0.22,1,0.36,1) both;
+    }
+
+    @keyframes riseIn {
+      from { opacity:0; transform: translateY(32px) scale(0.96); }
+      to   { opacity:1; transform: translateY(0)   scale(1); }
+    }
+
+    /* ── WORDMARK ── */
+    .wordmark {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: clamp(2.6rem, 6vw, 4rem);
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #f0b429 0%, #fff 55%, #f97316 100%);
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent;
+      margin-bottom: 0.15em;
+      line-height: 1;
+    }
+
+    .tagline {
+      font-size: 0.78rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 3rem;
+    }
+
+    /* ── SPIN RING ── */
+    .ring-outer {
+      position: relative;
+      width: 110px; height: 110px;
+      margin-bottom: 2.8rem;
+    }
+
+    .ring-outer::before {
+      content: '';
+      position: absolute; inset: -3px;
+      border-radius: 50%;
+      background: var(--ring);
+      animation: spinRing 2.4s linear infinite;
+      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #fff calc(100% - 4px));
+              mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #fff calc(100% - 4px));
+      filter: blur(0.5px);
+    }
+
+    @keyframes spinRing { to { transform: rotate(360deg); } }
+
+    .ring-inner {
+      position: absolute; inset: 8px;
+      border-radius: 50%;
+      background: var(--mid);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 30px rgba(240,180,41,0.15) inset;
+    }
+
+    /* small orbiting dot */
+    .orbit-dot {
+      position: absolute; top: -4px; left: 50%; transform: translateX(-50%);
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #f0b429;
+      box-shadow: 0 0 12px 4px #f0b429;
+      animation: spinRing 2.4s linear infinite;
+      transform-origin: 0 59px;
+    }
+
+    /* center icon (SVG diamond) */
+    .center-icon {
+      width: 36px; height: 36px;
+      animation: pulseSlow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseSlow {
+      0%,100% { transform: scale(1); filter: drop-shadow(0 0 6px #f0b42988); }
+      50%      { transform: scale(1.12); filter: drop-shadow(0 0 18px #f0b429cc); }
+    }
+
+    /* ── PROGRESS BAR ── */
+    .progress-track {
+      width: 220px; height: 3px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #8b5cf6, #f97316, #f0b429);
+      border-radius: 99px;
+      width: 0%;
+      transition: width 0.4s ease;
+      box-shadow: 0 0 10px rgba(249,115,22,0.7);
+    }
+
+    /* ── STATUS TEXT ── */
+    .status-msg {
+      font-size: 0.82rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      height: 1.4em;
+      text-align: center;
+      transition: opacity 0.25s;
+    }
+
+    /* ── GLOWING DOTS ── */
+    .dots {
+      display: flex; gap: 10px; margin-top: 1.6rem;
+    }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: linear-gradient(135deg, #f0b429, #f97316);
+      animation: dotPulse 1.5s ease-in-out infinite;
+    }
+    .dot:nth-child(2) { animation-delay:.22s; background: linear-gradient(135deg,#a78bfa,#6366f1); }
+    .dot:nth-child(3) { animation-delay:.44s; background: linear-gradient(135deg,#34d399,#10b981); }
+
+    @keyframes dotPulse {
+      0%,100%{ transform:scale(0.5); opacity:0.3; }
+      50%    { transform:scale(1.3); opacity:1; box-shadow:0 0 12px currentColor; }
+    }
+
+    /* ambient glow blobs */
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      animation: blobDrift 8s ease-in-out infinite alternate;
+    }
+    .blob1 { width:300px; height:300px; background:rgba(139,92,246,0.18); top:-60px; left:-100px; }
+    .blob2 { width:260px; height:260px; background:rgba(249,115,22,0.14); bottom:-40px; right:-80px; animation-delay:-4s; }
+
+    @keyframes blobDrift {
+      from { transform: translate(0,0) scale(1); }
+      to   { transform: translate(30px,20px) scale(1.1); }
+    }
+
+    /* ────────────────────────────────────────────────────
+       EFFECT CANVAS LAYERS
+    ──────────────────────────────────────────────────── */
+    #effectCanvas {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      z-index: 8999;
+    }
+
+    /* ── EFFECT PANEL BUTTON ── */
+    #effectBtn {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      border: none; cursor: pointer;
+      background: rgba(26,23,48,0.85);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(240,180,41,0.3);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9500;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.5), 0 0 0 0 rgba(240,180,41,0);
+      transition: box-shadow 0.3s, transform 0.2s;
+    }
+    #effectBtn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.5), 0 0 20px rgba(240,180,41,0.4);
+    }
+    #effectBtn svg { width:22px; height:22px; }
+
+    /* ── EFFECT PANEL ── */
+    #effectPanel {
+      position: fixed;
+      bottom: 86px; right: 18px;
+      width: 220px;
+      background: rgba(14,12,26,0.92);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(240,180,41,0.18);
+      border-radius: 18px;
+      padding: 16px;
+      z-index: 9500;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      transform: translateY(12px) scale(0.95);
+      opacity: 0;
+      visibility: hidden;
+      transition: transform 0.28s cubic-bezier(0.34,1.4,0.64,1), opacity 0.22s ease, visibility 0.22s;
+    }
+    #effectPanel.open {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .panel-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    #closePanel {
+      cursor: pointer;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.07);
+      border: none;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted);
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    #closePanel:hover { background: rgba(255,255,255,0.15); }
+
+    .effect-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .effect-chip {
+      padding: 8px 6px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--muted);
+      font-size: 0.74rem;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.18s;
+      font-family: 'DM Sans', sans-serif;
+      user-select: none;
+    }
+    .effect-chip:hover { background: rgba(240,180,41,0.12); border-color: rgba(240,180,41,0.3); color:#f0b429; }
+    .effect-chip.active {
+      background: rgba(240,180,41,0.18);
+      border-color: rgba(240,180,41,0.6);
+      color: #f0b429;
+      box-shadow: 0 0 12px rgba(240,180,41,0.2);
+    }
+
+    .panel-divider { height:1px; background:rgba(255,255,255,0.07); margin:10px 0; }
+
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 0.74rem; color: var(--muted);
+    }
+
+    /* toggle switch */
+    .toggle-switch {
+      position: relative; width: 38px; height: 20px;
+    }
+    .toggle-switch input { display:none; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: rgba(255,255,255,0.1);
+      border-radius: 99px;
+      cursor: pointer;
+      transition: background 0.25s;
+    }
+    .toggle-track::after {
+      content: '';
+      position: absolute; top: 3px; left: 3px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #fff;
+      transition: transform 0.25s;
+    }
+    .toggle-switch input:checked + .toggle-track { background: #f0b429; }
+    .toggle-switch input:checked + .toggle-track::after { transform: translateX(18px); }
+
+    .auto-badge {
+      font-size: 0.65rem;
+      padding: 2px 8px;
+      border-radius: 99px;
+      background: rgba(99,102,241,0.25);
+      color: #a5b4fc;
+      border: 1px solid rgba(99,102,241,0.3);
+      margin-left: 6px;
+    }
+
+    /* ── error toast ── */
+    .error-toast {
+      position: fixed; bottom:30px; left:50%;
+      transform: translateX(-50%) translateY(80px);
+      background: rgba(8,7,15,0.9);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(249,115,22,0.3);
+      border-radius: 99px;
+      padding: 10px 22px;
+      color: #e8e0ff;
+      font-size: 0.85rem;
+      z-index: 9999;
+      transition: transform 0.4s cubic-bezier(0.34,1.2,0.64,1);
+    }
+    .error-toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- ── EFFECT CANVAS ── -->
+<canvas id="effectCanvas"></canvas>
+
+<!-- ── IFRAME ── -->
+<iframe
+  class="fullscreen-iframe"
+  src="https://web-tuann.lovable.app/"
+  title="Shop Acc Game Premium"
+  sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-downloads allow-storage-access-by-user-activation allow-popups-to-escape-sandbox"
+  referrerpolicy="strict-origin-when-cross-origin"
+  loading="eager"
+  importance="high"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+></iframe>
+
+<!-- ── LOADING OVERLAY ── -->
+<div id="loadingOverlay">
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+
+  <div class="loader-wrap">
+    <div class="wordmark">TUANN</div>
+    <div class="tagline">Premium Gaming Store</div>
+
+    <!-- spin ring -->
+    <div class="ring-outer">
+      <div class="orbit-dot"></div>
+      <div class="ring-inner">
+        <!-- diamond SVG icon -->
+        <svg class="center-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="18,2 34,14 18,34 2,14" fill="none" stroke="url(#dg)" stroke-width="1.6" stroke-linejoin="round"/>
+          <polyline points="2,14 18,18 34,14" stroke="url(#dg)" stroke-width="1.2"/>
+          <line x1="18" y1="2" x2="18" y2="34" stroke="url(#dg)" stroke-width="1.2"/>
+          <defs>
+            <linearGradient id="dg" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#f0b429"/>
+              <stop offset="100%" stop-color="#f97316"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+    </div>
+
+    <!-- progress -->
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+    <div class="status-msg" id="statusMsg">Khởi động hệ thống...</div>
+
+    <div class="dots">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── EFFECT PANEL BUTTON ── -->
+<button id="effectBtn" title="Hiệu ứng">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#f0b429" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
+    <path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/>
+    <path d="M5 17l.5 1.5L7 19l-1.5.5L5 21l-.5-1.5L3 19l1.5-.5L5 17z"/>
+  </svg>
+</button>
+
+<!-- ── EFFECT PANEL ── -->
+<div id="effectPanel">
+  <div class="panel-title">
+    <span>Hiệu ứng</span>
+    <button id="closePanel">&#x2715;</button>
+  </div>
+
+  <div class="effect-grid">
+    <div class="effect-chip" data-effect="sparkle">Phát sáng</div>
+    <div class="effect-chip" data-effect="snow">Tuyết rơi</div>
+    <div class="effect-chip" data-effect="firework">Pháo hoa</div>
+    <div class="effect-chip" data-effect="aurora">Bắc cực quang</div>
+    <div class="effect-chip" data-effect="rain">Mưa rơi</div>
+    <div class="effect-chip" data-effect="galaxy">Dải ngân hà</div>
+    <div class="effect-chip" data-effect="leaves">Lá bay</div>
+    <div class="effect-chip" data-effect="ripple">Gợn sóng</div>
+  </div>
+
+  <div class="panel-divider"></div>
+
+  <div class="toggle-row">
+    <span>Tự động theo giờ <span class="auto-badge" id="autoBadge">--</span></span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="autoToggle" checked />
+      <div class="toggle-track"></div>
+    </label>
+  </div>
+
+  <div class="panel-divider"></div>
+
+  <div class="toggle-row">
+    <span>Tắt tất cả hiệu ứng</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="offToggle" />
+      <div class="toggle-track"></div>
+    </label>
+  </div>
+</div>
+
+<script>
+(function () {
+  /* ═══════════════════════════════════════════════════
+     LOADING
+  ═══════════════════════════════════════════════════ */
+  const iframe    = document.querySelector('.fullscreen-iframe');
+  const overlay   = document.getElementById('loadingOverlay');
+  const statusMsg = document.getElementById('statusMsg');
+  const progFill  = document.getElementById('progressFill');
+
+  const statuses = [
+    'Kích hoạt máy chủ siêu tốc...',
+    'Mở kho bảo mật AES-256...',
+    'Đồng bộ dữ liệu an toàn...',
+    'Tải giao diện cao cấp...',
+    'Kết nối hệ thống 24/7...',
+    'Chuẩn bị kho tài khoản game...',
+    'Sẵn sàng trải nghiệm đỉnh cao...'
+  ];
+  let si = 0, prog = 0;
+
+  const statusInt = setInterval(() => {
+    si = (si + 1) % statuses.length;
+    statusMsg.style.opacity = 0;
+    setTimeout(() => { statusMsg.textContent = statuses[si]; statusMsg.style.opacity = 1; }, 220);
+  }, 1700);
+
+  const progInt = setInterval(() => {
+    prog = Math.min(prog + Math.random() * 12, 90);
+    progFill.style.width = prog + '%';
+  }, 380);
+
+  function hideLoading() {
+    clearInterval(statusInt); clearInterval(progInt);
+    progFill.style.width = '100%';
+    setTimeout(() => {
+      overlay.classList.add('fade-out');
+      iframe.classList.add('loaded');
+      setTimeout(() => { overlay.style.display = 'none'; }, 900);
+    }, 280);
+  }
+
+  if (iframe) {
+    iframe.addEventListener('load', () => setTimeout(hideLoading, 300));
+    iframe.addEventListener('error', () => { showToast('Kết nối chậm — đang tối ưu...'); setTimeout(hideLoading, 1000); });
+    setTimeout(() => { if (overlay && overlay.style.display !== 'none') hideLoading(); }, 4200);
+  }
+
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'error-toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.classList.add('show'), 100);
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 4000);
+  }
+
+  /* preconnect */
+  const lnk = document.createElement('link');
+  lnk.rel = 'preconnect'; lnk.href = 'https://web-tuann.lovable.app';
+  document.head.appendChild(lnk);
+
+  /* ═══════════════════════════════════════════════════
+     EFFECT ENGINE
+  ═══════════════════════════════════════════════════ */
+  const canvas  = document.getElementById('effectCanvas');
+  const ctx     = canvas.getContext('2d');
+  let W, H;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  /* ── particles pool ── */
+  let particles = [];
+  let currentEffect = null;
+  let effectOff = false;
+  let autoMode = true;
+
+  /* continuous bg particles (always-on subtle) */
+  const bgParticles = Array.from({length: 60}, () => ({
+    x: Math.random() * window.innerWidth,
+    y: Math.random() * window.innerHeight,
+    r: Math.random() * 1.5 + 0.4,
+    a: Math.random() * 0.35 + 0.08,
+    vx: (Math.random() - 0.5) * 0.18,
+    vy: (Math.random() - 0.5) * 0.12,
+    hue: Math.random() * 60 + 20
+  }));
+
+  /* ────── time-based auto selection ────── */
+  const hourEffects = {
+    morning:   'aurora',   // 06–11
+    noon:      'sparkle',  // 11–14
+    afternoon: 'leaves',   // 14–18
+    evening:   'firework', // 18–21
+    night:     'galaxy',   // 21–24
+    late:      'snow'      // 00–06
+  };
+
+  function getTimeSlot() {
+    const h = new Date().getHours();
+    if (h >= 6  && h < 11) return 'morning';
+    if (h >= 11 && h < 14) return 'noon';
+    if (h >= 14 && h < 18) return 'afternoon';
+    if (h >= 18 && h < 21) return 'evening';
+    if (h >= 21)            return 'night';
+    return 'late';
+  }
+
+  const slotLabels = {
+    morning:'Sáng', noon:'Trưa', afternoon:'Chiều',
+    evening:'Tối', night:'Đêm', late:'Khuya'
+  };
+
+  function applyAutoEffect() {
+    if (!autoMode || effectOff) return;
+    const slot = getTimeSlot();
+    document.getElementById('autoBadge').textContent = slotLabels[slot];
+    setEffect(hourEffects[slot], false);
+  }
+
+  /* ────── click / move burst ────── */
+  let moveThrottle = 0;
+
+  canvas.style.pointerEvents = 'none';
+  document.addEventListener('click', (e) => {
+    if (!effectOff) spawnBurst(e.clientX, e.clientY);
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (effectOff) return;
+    const now = Date.now();
+    if (now - moveThrottle < 40) return;
+    moveThrottle = now;
+    spawnTrail(e.clientX, e.clientY);
+  });
+  document.addEventListener('touchmove', (e) => {
+    if (effectOff) return;
+    const t = e.touches[0];
+    spawnTrail(t.clientX, t.clientY);
+  }, { passive: true });
+  document.addEventListener('touchstart', (e) => {
+    if (effectOff) return;
+    const t = e.touches[0];
+    spawnBurst(t.clientX, t.clientY);
+  }, { passive: true });
+
+  function spawnBurst(x, y) {
+    const eff = currentEffect;
+    const count = 18;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count;
+      const speed = Math.random() * 3.5 + 1;
+      particles.push({
+        type: eff || 'sparkle',
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1, decay: 0.018 + Math.random() * 0.014,
+        r: Math.random() * 5 + 2,
+        hue: Math.random() * 60 + 20,
+        isBurst: true
+      });
+    }
+  }
+
+  function spawnTrail(x, y) {
+    particles.push({
+      type: currentEffect || 'sparkle',
+      x, y,
+      vx: (Math.random() - 0.5) * 1.2,
+      vy: -Math.random() * 1.8 - 0.5,
+      life: 1, decay: 0.04,
+      r: Math.random() * 3.5 + 1,
+      hue: Math.random() * 60 + 20,
+      isTrail: true
+    });
+  }
+
+  /* ────── EFFECT DEFINITIONS ────── */
+
+  /* SNOW */
+  let snowflakes = [];
+  function initSnow() {
+    snowflakes = Array.from({length:130}, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 4 + 1,
+      speed: Math.random() * 0.8 + 0.3,
+      drift: (Math.random() - 0.5) * 0.3,
+      a: Math.random() * 0.6 + 0.3
+    }));
+  }
+  function drawSnow() {
+    for (const s of snowflakes) {
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(220,235,255,${s.a})`;
+      ctx.fill();
+      s.y += s.speed; s.x += s.drift;
+      if (s.y > H) { s.y = -4; s.x = Math.random() * W; }
+      if (s.x < 0) s.x = W; if (s.x > W) s.x = 0;
+    }
+  }
+
+  /* RAIN */
+  let raindrops = [];
+  function initRain() {
+    raindrops = Array.from({length:200}, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      len: Math.random() * 18 + 8,
+      speed: Math.random() * 6 + 6,
+      a: Math.random() * 0.4 + 0.15
+    }));
+  }
+  function drawRain() {
+    ctx.strokeStyle = 'rgba(140,180,255,0.35)';
+    ctx.lineWidth = 1;
+    for (const d of raindrops) {
+      ctx.beginPath();
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x + d.len * 0.18, d.y + d.len);
+      ctx.globalAlpha = d.a;
+      ctx.stroke();
+      d.y += d.speed; d.x += d.speed * 0.18;
+      if (d.y > H) { d.y = -20; d.x = Math.random() * W; }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* LEAVES */
+  let leaves = [];
+  function initLeaves() {
+    leaves = Array.from({length:50}, () => createLeaf());
+  }
+  function createLeaf() {
+    return {
+      x: Math.random() * W, y: -20,
+      size: Math.random() * 18 + 10,
+      speed: Math.random() * 1.2 + 0.5,
+      drift: (Math.random() - 0.5) * 1.2,
+      rot: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.05,
+      hue: Math.floor(Math.random() * 50 + 15),
+      a: Math.random() * 0.6 + 0.3
+    };
+  }
+  function drawLeaf(l) {
+    ctx.save();
+    ctx.translate(l.x, l.y);
+    ctx.rotate(l.rot);
+    ctx.globalAlpha = l.a;
+    ctx.beginPath();
+    ctx.moveTo(0, -l.size / 2);
+    ctx.bezierCurveTo( l.size/2, -l.size/4,  l.size/2,  l.size/4, 0,  l.size/2);
+    ctx.bezierCurveTo(-l.size/2,  l.size/4, -l.size/2, -l.size/4, 0, -l.size/2);
+    ctx.fillStyle = `hsl(${l.hue},80%,45%)`;
+    ctx.fill();
+    ctx.restore();
+    l.y += l.speed; l.x += l.drift; l.rot += l.rotSpeed;
+    if (l.y > H + 20) { Object.assign(l, createLeaf()); l.y = -20; }
+  }
+
+  /* AURORA */
+  let auroraT = 0;
+  function drawAurora() {
+    auroraT += 0.004;
+    for (let i = 0; i < 4; i++) {
+      const grd = ctx.createLinearGradient(0, 0, W, 0);
+      const hue = 140 + i * 40 + Math.sin(auroraT + i) * 30;
+      grd.addColorStop(0, `hsla(${hue},80%,50%,0)`);
+      grd.addColorStop(0.3 + Math.sin(auroraT * 0.7 + i) * 0.15, `hsla(${hue},80%,55%,0.12)`);
+      grd.addColorStop(0.7, `hsla(${hue + 40},70%,50%,0.08)`);
+      grd.addColorStop(1, `hsla(${hue},80%,50%,0)`);
+      ctx.fillStyle = grd;
+      const y = H * 0.15 + Math.sin(auroraT * 0.6 + i * 1.2) * H * 0.12;
+      const ht = H * 0.28 + Math.sin(auroraT * 0.4 + i) * H * 0.06;
+      ctx.fillRect(0, y, W, ht);
+    }
+  }
+
+  /* GALAXY */
+  let stars = [];
+  function initGalaxy() {
+    stars = Array.from({length: 220}, () => ({
+      x: Math.random() * W, y: Math.random() * H,
+      r: Math.random() * 2.2 + 0.3,
+      a: Math.random(),
+      twinkle: Math.random() * Math.PI * 2,
+      speed: Math.random() * 0.02 + 0.005,
+      hue: Math.random() * 60 + 200
+    }));
+  }
+  function drawGalaxy() {
+    for (const s of stars) {
+      s.twinkle += s.speed;
+      const alpha = (Math.sin(s.twinkle) * 0.4 + 0.5) * s.a;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${s.hue},70%,80%,${alpha})`;
+      ctx.fill();
+    }
+  }
+
+  /* FIREWORK */
+  let rockets = [];
+  let lastRocket = 0;
+  function spawnRocket() {
+    const x = W * 0.2 + Math.random() * W * 0.6;
+    const trails = [];
+    const hue = Math.random() * 360;
+    const targetY = H * 0.1 + Math.random() * H * 0.35;
+    rockets.push({ x, y: H, vy: -(H - targetY) / 50, targetY, hue, exploded: false, trails, life: 1 });
+  }
+  function drawFireworks() {
+    const now = Date.now();
+    if (now - lastRocket > 900 && rockets.length < 5) { spawnRocket(); lastRocket = now; }
+    for (let i = rockets.length - 1; i >= 0; i--) {
+      const r = rockets[i];
+      if (!r.exploded) {
+        r.y += r.vy;
+        ctx.beginPath(); ctx.arc(r.x, r.y, 2, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${r.hue},90%,70%,0.9)`; ctx.fill();
+        if (r.y <= r.targetY) {
+          r.exploded = true;
+          for (let j = 0; j < 60; j++) {
+            const ang = (Math.PI * 2 * j) / 60;
+            const sp = Math.random() * 3.5 + 1;
+            r.trails.push({ x: r.x, y: r.y, vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp, life:1, decay: 0.016+Math.random()*0.012, hue: r.hue });
+          }
+        }
+      } else {
+        for (let j = r.trails.length - 1; j >= 0; j--) {
+          const t = r.trails[j];
+          t.x += t.vx; t.y += t.vy; t.vy += 0.06; t.life -= t.decay;
+          if (t.life <= 0) { r.trails.splice(j, 1); continue; }
+          ctx.beginPath(); ctx.arc(t.x, t.y, 2.5 * t.life, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${t.hue},90%,65%,${t.life * 0.85})`; ctx.fill();
+        }
+        if (r.trails.length === 0) rockets.splice(i, 1);
+      }
+    }
+  }
+
+  /* RIPPLE (on click only, bg) */
+  let ripples = [];
+  document.addEventListener('click', (e) => {
+    if (!effectOff && currentEffect === 'ripple') {
+      ripples.push({ x: e.clientX, y: e.clientY, r: 0, maxR: 120, life: 1, hue: Math.random()*60+20 });
+    }
+  });
+  function drawRipples() {
+    for (let i = ripples.length - 1; i >= 0; i--) {
+      const rp = ripples[i];
+      rp.r += 3.5; rp.life -= 0.025;
+      if (rp.life <= 0) { ripples.splice(i,1); continue; }
+      ctx.beginPath(); ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+      ctx.strokeStyle = `hsla(${rp.hue},80%,65%,${rp.life * 0.5})`;
+      ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(rp.x, rp.y, rp.r * 0.6, 0, Math.PI * 2);
+      ctx.strokeStyle = `hsla(${rp.hue},80%,75%,${rp.life * 0.25})`;
+      ctx.lineWidth = 1.2; ctx.stroke();
+    }
+  }
+
+  /* SPARKLE */
+  function drawParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy;
+      if (!p.isBurst) p.vy += 0.04;
+      p.life -= p.decay;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+
+      const type = p.type || 'sparkle';
+
+      if (type === 'snow' || type === 'rain') {
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
+        ctx.fillStyle = type === 'snow'
+          ? `rgba(200,220,255,${p.life * 0.8})`
+          : `rgba(120,160,255,${p.life * 0.6})`;
+        ctx.fill();
+      } else if (type === 'leaves') {
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.life * 3);
+        ctx.globalAlpha = p.life;
+        ctx.beginPath();
+        ctx.moveTo(0, -p.r); ctx.bezierCurveTo(p.r/2,-p.r/2,p.r/2,p.r/2,0,p.r);
+        ctx.bezierCurveTo(-p.r/2,p.r/2,-p.r/2,-p.r/2,0,-p.r);
+        ctx.fillStyle = `hsl(${p.hue+10},70%,42%)`;
+        ctx.fill(); ctx.restore();
+      } else if (type === 'galaxy' || type === 'aurora') {
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${p.hue + 180},80%,70%,${p.life * 0.7})`; ctx.fill();
+      } else if (type === 'ripple') {
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 2 * (1 - p.life), 0, Math.PI * 2);
+        ctx.strokeStyle = `hsla(${p.hue},80%,65%,${p.life * 0.6})`; ctx.lineWidth = 1.5; ctx.stroke();
+      } else {
+        // sparkle / firework default
+        ctx.save();
+        const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2.5);
+        grd.addColorStop(0, `hsla(${p.hue},100%,75%,${p.life})`);
+        grd.addColorStop(1, `hsla(${p.hue},100%,65%,0)`);
+        ctx.fillStyle = grd;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    }
+  }
+
+  /* ── MAIN LOOP ── */
+  function loop() {
+    ctx.clearRect(0, 0, W, H);
+
+    if (!effectOff) {
+      // bg subtle particles
+      ctx.globalAlpha = 1;
+      for (const bp of bgParticles) {
+        ctx.beginPath(); ctx.arc(bp.x, bp.y, bp.r, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${bp.hue},60%,65%,${bp.a})`; ctx.fill();
+        bp.x += bp.vx; bp.y += bp.vy;
+        if (bp.x < 0) bp.x = W; if (bp.x > W) bp.x = 0;
+        if (bp.y < 0) bp.y = H; if (bp.y > H) bp.y = 0;
+      }
+
+      // current persistent effect
+      ctx.globalAlpha = 1;
+      switch (currentEffect) {
+        case 'snow':      drawSnow(); break;
+        case 'rain':      drawRain(); break;
+        case 'leaves':    for (const l of leaves) drawLeaf(l); break;
+        case 'aurora':    drawAurora(); break;
+        case 'galaxy':    drawGalaxy(); break;
+        case 'firework':  drawFireworks(); break;
+        case 'ripple':    drawRipples(); break;
+      }
+
+      // interactive particles (always drawn over persistent)
+      drawParticles();
+      // ripples independent of current effect
+      if (currentEffect !== 'ripple') drawRipples();
+    }
+
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  /* ── SET EFFECT ── */
+  function setEffect(name, fromUser) {
+    currentEffect = name;
+    if (name === 'snow')    initSnow();
+    if (name === 'rain')    initRain();
+    if (name === 'leaves')  initLeaves();
+    if (name === 'galaxy')  initGalaxy();
+    if (name === 'firework') { rockets = []; lastRocket = 0; }
+
+    document.querySelectorAll('.effect-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.effect === name);
+    });
+  }
+
+  /* ── PANEL CONTROLS ── */
+  const effectBtn   = document.getElementById('effectBtn');
+  const effectPanel = document.getElementById('effectPanel');
+  const closeBtn    = document.getElementById('closePanel');
+  const autoToggle  = document.getElementById('autoToggle');
+  const offToggle   = document.getElementById('offToggle');
+
+  effectBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    effectPanel.classList.toggle('open');
+  });
+  closeBtn.addEventListener('click', () => effectPanel.classList.remove('open'));
+
+  document.querySelectorAll('.effect-chip').forEach(c => {
+    c.addEventListener('click', () => {
+      autoMode = false;
+      autoToggle.checked = false;
+      document.getElementById('autoBadge').textContent = '--';
+      offToggle.checked = false;
+      effectOff = false;
+      setEffect(c.dataset.effect, true);
+    });
+  });
+
+  autoToggle.addEventListener('change', () => {
+    autoMode = autoToggle.checked;
+    if (autoMode) { offToggle.checked = false; effectOff = false; applyAutoEffect(); }
+  });
+
+  offToggle.addEventListener('change', () => {
+    effectOff = offToggle.checked;
+    if (effectOff) {
+      autoMode = false; autoToggle.checked = false;
+      document.getElementById('autoBadge').textContent = '--';
+      particles = []; ripples = [];
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!effectPanel.contains(e.target) && e.target !== effectBtn)
+      effectPanel.classList.remove('open');
+  });
+
+  /* ── INIT ── */
+  applyAutoEffect();
+  // re-check every hour
+  setInterval(applyAutoEffect, 60 * 60 * 1000);
+
+  window.addEventListener('resize', () => {
+    if (iframe) { iframe.style.width = '100%'; iframe.style.height = '100%'; }
+  });
+
+  document.addEventListener('touchstart', () => {}, { passive: true });
+
+})();
+</script>
+</body>
+</html>
